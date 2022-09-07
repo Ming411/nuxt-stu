@@ -18,7 +18,7 @@ module.exports = {
               {
                 path: '/login',
                 name: 'login',
-                component: resolve(__dirname, 'pages/login/')
+                component: resolve(__dirname, 'pages/login/index.vue')
               },
               {
                 path: '/register',

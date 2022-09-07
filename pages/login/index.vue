@@ -39,7 +39,7 @@ export default {
   name: 'LoginIndex',
   computed: {
     isLogin() {
-      return this.$rotue.name === 'login';
+      return this.$route.name === 'login';
     }
   }
 };
