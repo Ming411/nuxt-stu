@@ -41,6 +41,7 @@
 
 <script>
 export default {
+  middleware: 'authenticated',
   name: 'SettingsIndex'
 };
 </script>

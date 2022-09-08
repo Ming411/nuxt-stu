@@ -61,6 +61,7 @@ import {login, register} from '../../api/user';
 // process.client  客户端才为true
 const Cookie = process.client ? require('js-cookie') : undefined;
 export default {
+  middleware: 'notAuthenticated',
   name: 'LoginIndex',
   computed: {
     isLogin() {

@@ -39,6 +39,9 @@
 
 <script>
 export default {
+  // 多个中间件可以写成数组形式
+  // 名字就是文件的名字
+  middleware:'authenticated',
   name: 'EditorIndex'
 };
 </script>
