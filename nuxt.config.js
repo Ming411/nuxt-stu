@@ -52,5 +52,12 @@ module.exports = {
         ]
       );
     }
-  }
+  },
+  server: {
+    // 默认是localhost，设置成0.0.0.0就能让其他ip也能访问
+    host: '0.0.0.0',
+    port: 3000 // 部署后地址 服务器ip+port
+  },
+  // 注册插件
+  plugins: ['~/plugins/request.js', '~/plugins/dayjs.js']
 };

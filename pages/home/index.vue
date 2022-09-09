@@ -12,11 +12,48 @@
         <div class="col-md-9">
           <div class="feed-toggle">
             <ul class="nav nav-pills outline-active">
-              <li class="nav-item">
-                <a class="nav-link disabled" href="">Your Feed</a>
+              <li class="nav-item" v-if="user">
+                <nuxt-link
+                  class="nav-link"
+                  :class="{active: tab === 'your_feed'}"
+                  :to="{
+                    name: 'home',
+                    query: {
+                      tab: 'your_feed'
+                    }
+                  }"
+                  exact
+                  >Your Feed</nuxt-link
+                >
               </li>
               <li class="nav-item">
-                <a class="nav-link active" href="">Global Feed</a>
+                <nuxt-link
+                  class="nav-link"
+                  :class="{active: tab === 'global_feed'}"
+                  :to="{
+                    name: 'home',
+                    query: {
+                      tab: 'global_feed'
+                    }
+                  }"
+                  exact
+                  >Global Feed</nuxt-link
+                >
+              </li>
+              <li v-if="tag" class="nav-item">
+                <nuxt-link
+                  class="nav-link"
+                  :class="{active: tab === 'tag'}"
+                  :to="{
+                    name: 'home',
+                    query: {
+                      tab: 'tag',
+                      tag: tag
+                    }
+                  }"
+                  exact
+                  >#{{ tag }}</nuxt-link
+                >
               </li>
             </ul>
           </div>
@@ -43,11 +80,13 @@
                   class="author"
                   >{{ article.author.username }}</nuxt-link
                 >
-                <span class="date">{{ article.createdAt }}</span>
+                <span class="date">{{ article.createdAt | date }}</span>
               </div>
               <button
                 class="btn btn-outline-primary btn-sm pull-xs-right"
                 :class="{active: article.favorited}"
+                :disabled="article.favoriteDisabled"
+                @click="onFavorite(article)"
               >
                 <i class="ion-heart"></i> {{ article.favoritesCount }}
               </button>
@@ -81,7 +120,9 @@
                   :to="{
                     name: 'home',
                     query: {
-                      page: item
+                      page: item,
+                      tag: $route.query.tag,
+                      tab: tab
                     }
                   }"
                   >{{ item }}</nuxt-link
@@ -96,14 +137,19 @@
             <p>Popular Tags</p>
 
             <div class="tag-list">
-              <a href="" class="tag-pill tag-default">programming</a>
-              <a href="" class="tag-pill tag-default">javascript</a>
-              <a href="" class="tag-pill tag-default">emberjs</a>
-              <a href="" class="tag-pill tag-default">angularjs</a>
-              <a href="" class="tag-pill tag-default">react</a>
-              <a href="" class="tag-pill tag-default">mean</a>
-              <a href="" class="tag-pill tag-default">node</a>
-              <a href="" class="tag-pill tag-default">rails</a>
+              <nuxt-link
+                :to="{
+                  name: 'home',
+                  query: {
+                    tab: 'tag',
+                    tag: item
+                  }
+                }"
+                class="tag-pill tag-default"
+                v-for="item in tags"
+                :key="item"
+                >{{ item }}</nuxt-link
+              >
             </div>
           </div>
         </div>
@@ -113,28 +159,74 @@
 </template>
 
 <script>
-import {getArticles} from '../../api/article';
+import {mapState} from 'vuex';
+import {getArticles, getFeedArticles, addFavorite, deleteFavorite} from '../../api/article';
+import {getTags} from '../../api/tag';
 export default {
   name: 'HomeIndex',
-  watchQuery: ['page'],
-  async asyncData({query}) {
+  watchQuery: ['page', 'tag', 'tab'],
+  // 从路由中解构query参数
+  async asyncData({query, store}) {
     const page = Number.parseInt(query.page || 1);
     const limit = 2;
-    const {data} = await getArticles({
+
+    const {tag} = query;
+    const tab = query.tab || 'global_feed';
+    const loadArticles = store.state.user && tab === 'your_feed' ? getFeedArticles : getArticles;
+
+    // 获取当前页文章
+    /*    const {data} = await getArticles({
       limit,
       offset: (page - 1) * limit
     });
-    // console.log(data);
+
+    const {data: tagData} = await getTags(); */
+    // 优化，并发执行二者
+
+    const [articleRes, tagRes] = await Promise.all([
+      loadArticles({
+        limit,
+        offset: (page - 1) * limit,
+        tag
+      }),
+      getTags()
+    ]);
+    const {articles, articlesCount} = articleRes.data;
+    const {tags} = tagRes.data;
+
+    // 给每个文章添加一个禁用点赞的属性，防止网络过慢，用户重复点击
+    articles.forEach(article => (article.favoriteDisabled = false));
     return {
-      articles: data.articles,
-      articlesCount: data.articlesCount,
+      articles,
+      tags,
+      articlesCount,
       limit,
-      page
+      page,
+      tag,
+      tab
     };
   },
   computed: {
     totalPage() {
       return Math.ceil(this.articlesCount / this.limit);
+    },
+    ...mapState(['user'])
+  },
+  methods: {
+    async onFavorite(article) {
+      article.favoriteDisabled = true;
+      if (article.favorited) {
+        // 取消点赞
+        await deleteFavorite(article.slug);
+        article.favorited = false;
+        article.favoritesCount += -1;
+      } else {
+        // 点赞
+        await addFavorite(article.slug);
+        article.favorited = true;
+        article.favoritesCount += 1;
+      }
+      article.favoriteDisabled = false;
     }
   }
 };
